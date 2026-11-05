@@ -1,0 +1,44 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+
+solc_version = "0.8.24"
+# Cancun, so that the same settings work as the course's reference project.
+evm_version = "cancun"
+
+optimizer = true
+optimizer_runs = 200
+
+# Needed for `forge inspect <Contract> storageLayout`.
+extra_output = ["storageLayout"]
+
+gas_reports = ["YulCounter", "CampusToken", "MerkleYul", "AllowlistGas"]
+
+# The airdrop test (bonus E2) reads the proofs written by airdrop/merkle.py.
+# The airdrop test holds the 11.5 MB proofs file in memory, and the mapping
+# comparison writes 10,000 slots in one call; both need more than the default.
+gas_limit = "max"
+
+fs_permissions = [{ access = "read", path = "./airdrop" }]
+
+# Fixed seed, so a failing fuzz case can be reproduced.
+[fuzz]
+runs = 512
+seed = "0x1234"
+
+[invariant]
+runs = 64
+depth = 32
+fail_on_revert = false
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+
+[lint]
+lint_on_build = false

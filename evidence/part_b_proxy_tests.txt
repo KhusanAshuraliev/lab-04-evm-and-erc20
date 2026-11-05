@@ -1,0 +1,21 @@
+$ forge test --match-contract "ProxyTest|ProxyExtraTest" -vv
+
+Ran 4 tests for test/ProxyExtra.t.sol:ProxyExtraTest
+[PASS] test_BrokenProxyReturnsNothingAfterCollision() (gas: 243471)
+[PASS] test_EIP1967AdminSlot() (gas: 309929)
+[PASS] test_RevertWhen_SafeProxyDeployedWithoutCode() (gas: 113009)
+[PASS] test_V2SetValueAfterUpgrade() (gas: 400706)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 768.62µs (1.07ms CPU time)
+
+Ran 8 tests for test/EvmInternals.t.sol:ProxyTest
+[PASS] test_BrokenProxyFailsSilentlyAfterCollision() (gas: 218633)
+[PASS] test_BrokenProxyStorageCollision() (gas: 199663)
+[PASS] test_Eip1967SlotHasTheCanonicalValue() (gas: 339)
+[PASS] test_RevertWhen_NonAdminUpgrades() (gas: 331008)
+[PASS] test_RevertWhen_UpgradingToNonContract() (gas: 331825)
+[PASS] test_SafeProxyAvoidsCollision() (gas: 369531)
+[PASS] test_StorageGapReservesSlots() (gas: 173804)
+[PASS] test_UpgradePreservesState() (gas: 511653)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 793.25µs (1.40ms CPU time)
+
+Ran 2 test suites in 4.44ms (1.56ms CPU time): 12 tests passed, 0 failed, 0 skipped (12 total tests)

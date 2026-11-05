@@ -1,0 +1,7 @@
+$ forge test --match-path "test/{CampusToken,CampusTokenInvariant,EvmInternals}.t.sol"   # the course suite, unchanged
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 741.58µs (311.87µs CPU time)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 835.96µs (391.67µs CPU time)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 44.43ms (51.01ms CPU time)
+Suite result: ok. 41 passed; 0 failed; 0 skipped; finished in 44.61ms (59.32ms CPU time)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 261.80ms (259.82ms CPU time)
+Ran 5 test suites in 263.22ms (352.41ms CPU time): 65 tests passed, 0 failed, 0 skipped (65 total tests)

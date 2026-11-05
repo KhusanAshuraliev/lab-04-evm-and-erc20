@@ -1,0 +1,61 @@
+$ forge test --match-contract "CampusTokenInvariantTest|CampusTokenModelTest" -vv
+
+Ran 1 test for test/CampusTokenInvariant.t.sol:CampusTokenInvariantTest
+[PASS]
+CampusTokenInvariantTest invariants:
+[PASS] invariant_FeeStaysWithinTheHardLimit
+[PASS] invariant_SumOfBalancesEqualsTotalSupply
+[PASS] invariant_SupplyMatchesMintMinusBurn
+[PASS] invariant_TotalSupplyNeverExceedsCap
+ CampusTokenInvariantTest invariants (runs: 64, calls: 2048, reverts: 0)
+
+╭--------------------+--------------+-------+---------+----------╮
+| Contract           | Selector     | Calls | Reverts | Discards |
++================================================================+
+| CampusTokenHandler | burn         | 433   | 0       | 0        |
+|--------------------+--------------+-------+---------+----------|
+| CampusTokenHandler | mint         | 402   | 0       | 0        |
+|--------------------+--------------+-------+---------+----------|
+| CampusTokenHandler | setFee       | 400   | 0       | 0        |
+|--------------------+--------------+-------+---------+----------|
+| CampusTokenHandler | transfer     | 416   | 0       | 0        |
+|--------------------+--------------+-------+---------+----------|
+| CampusTokenHandler | transferFrom | 397   | 0       | 0        |
+╰--------------------+--------------+-------+---------+----------╯
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 250.10ms (248.38ms CPU time)
+
+Ran 1 test for test/CampusTokenModel.t.sol:CampusTokenModelTest
+[PASS]
+CampusTokenModelTest invariants:
+[PASS] invariant_BalancesMatchTheModel
+[PASS] invariant_FeeWithinLimit
+[PASS] invariant_NoncesAndClaimsAreExact
+[PASS] invariant_SumOfBalancesIsSupply
+[PASS] invariant_SupplyIsMintedMinusBurned
+[PASS] invariant_SupplyWithinCap
+ CampusTokenModelTest invariants (runs: 64, calls: 2048, reverts: 0)
+
+╭--------------+---------------------+-------+---------+----------╮
+| Contract     | Selector            | Calls | Reverts | Discards |
++=================================================================+
+| ModelHandler | burn                | 232   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | claim               | 281   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | mint                | 262   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | moveTreasury        | 238   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | permitAndSpend      | 291   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | setFee              | 238   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | transfer            | 264   | 0       | 0        |
+|--------------+---------------------+-------+---------+----------|
+| ModelHandler | transferFromPartial | 242   | 0       | 0        |
+╰--------------+---------------------+-------+---------+----------╯
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 753.93ms (751.41ms CPU time)
+
+Ran 2 test suites in 756.34ms (1.00s CPU time): 2 tests passed, 0 failed, 0 skipped (2 total tests)

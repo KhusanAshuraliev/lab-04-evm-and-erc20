@@ -1,0 +1,65 @@
+$ slither . --exclude-dependencies --filter-paths "test|script|lib"
+INFO:Detectors:
+Detector: locked-ether
+Contract locking ether found:
+	Contract BrokenProxy (src/evm/Proxy.sol#81-91) has payable functions:
+	 - Forwarder.fallback() (src/evm/Proxy.sol#53-55)
+	 - Forwarder.receive() (src/evm/Proxy.sol#57-59)
+	But does not have a function to withdraw the ether
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether
+INFO:Detectors:
+Detector: missing-zero-check
+BrokenProxy.constructor(address).impl (src/evm/Proxy.sol#84) lacks a zero-check on :
+		- implementation = impl (src/evm/Proxy.sol#85)
+SafeProxyWithInit.constructor(address,address,bytes).impl (src/evm/Proxy.sol#160) lacks a zero-check on :
+		- (ok,ret) = impl.delegatecall(initData) (src/evm/Proxy.sol#161)
+StorageLayout.setOwnerAndFlag(address,bool).o (src/evm/StorageLayout.sol#74) lacks a zero-check on :
+		- owner = o (src/evm/StorageLayout.sol#75)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
+INFO:Detectors:
+Detector: assembly
+MerkleYul.verifyYul(bytes32[],bytes32,bytes32) (src/evm/MerkleYul.sol#26-45) uses assembly
+	- INLINE ASM (src/evm/MerkleYul.sol#31-44)
+Forwarder._forward() (src/evm/Proxy.sol#61-72) uses assembly
+	- INLINE ASM (src/evm/Proxy.sol#65-71)
+SafeProxy._load(bytes32) (src/evm/Proxy.sol#142-146) uses assembly
+	- INLINE ASM (src/evm/Proxy.sol#143-145)
+SafeProxy._store(bytes32,address) (src/evm/Proxy.sol#148-152) uses assembly
+	- INLINE ASM (src/evm/Proxy.sol#149-151)
+SafeProxyWithInit.constructor(address,address,bytes) (src/evm/Proxy.sol#160-167) uses assembly
+	- INLINE ASM (src/evm/Proxy.sol#163-165)
+StorageLayout.readSlot(uint256) (src/evm/StorageLayout.sol#56-60) uses assembly
+	- INLINE ASM (src/evm/StorageLayout.sol#57-59)
+YulCounter.incrementYul() (src/evm/YulCounter.sol#24-28) uses assembly
+	- INLINE ASM (src/evm/YulCounter.sol#25-27)
+YulCounter.sumYul(uint256[]) (src/evm/YulCounter.sol#42-50) uses assembly
+	- INLINE ASM (src/evm/YulCounter.sol#43-49)
+YulCounter.sumCheckedYul(uint256[]) (src/evm/YulCounter.sol#58-73) uses assembly
+	- INLINE ASM (src/evm/YulCounter.sol#59-72)
+YulCounter.guardYul(uint256) (src/evm/YulCounter.sol#83-93) uses assembly
+	- INLINE ASM (src/evm/YulCounter.sol#85-91)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#assembly-usage
+INFO:Detectors:
+Detector: low-level-calls
+Low level call in SafeProxyWithInit.constructor(address,address,bytes) (src/evm/Proxy.sol#160-167):
+	- (ok,ret) = impl.delegatecall(initData) (src/evm/Proxy.sol#161)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#low-level-calls
+INFO:Detectors:
+Detector: naming-convention
+Variable UpgradeableBase.__gap (src/evm/Proxy.sol#175) is not in mixedCase
+Variable StorageLayout.IMMUTABLE_VALUE (src/evm/StorageLayout.sol#35) is not in mixedCase
+Variable CampusTokenUpgradeable.__gap (src/upgradeable/CampusTokenUpgradeable.sol#22) is not in mixedCase
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#conformance-to-solidity-naming-conventions
+INFO:Detectors:
+Detector: unindexed-event-address
+Event SafeProxy.AdminChanged(address,address) (src/evm/Proxy.sol#106) has address parameters but no indexed parameters
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unindexed-event-address-parameters
+INFO:Detectors:
+Detector: constable-states
+UpgradeableBase.baseValue (src/evm/Proxy.sol#174) should be constant 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-constant
+INFO:Detectors:
+Detector: immutable-states
+BrokenProxy.implementation (src/evm/Proxy.sol#82) should be immutable 
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#state-variables-that-could-be-declared-immutable
+INFO:Slither:. analyzed (21 contracts with 100 detectors), 21 result(s) found

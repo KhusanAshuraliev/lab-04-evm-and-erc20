@@ -1,0 +1,9 @@
+# Requirement 1: every write to _balances or _totalSupply, in all of src/
+$ grep -rnE "_balances\[[^]]*\]\s*(=|\+=|-=)|_totalSupply\s*(=|\+=|-=)" src/
+src/lib/ERC20.sol:125:            _totalSupply += value;
+src/lib/ERC20.sol:130:                _balances[from] = fromBalance - value;
+src/lib/ERC20.sol:137:                _totalSupply -= value;
+src/lib/ERC20.sol:142:                _balances[to] += value;
+
+# ...all of them are inside ERC20._update (src/lib/ERC20.sol):
+121:    function _update(address from, address to, uint256 value) internal virtual {

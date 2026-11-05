@@ -1,0 +1,33 @@
+$ forge test --match-test test_ApproveRaceCondition -vvvv
+
+Ran 1 test for test/CampusToken.t.sol:CampusTokenTest
+[PASS] test_ApproveRaceCondition() (gas: 205326)
+Traces:
+  [214926] CampusTokenTest::test_ApproveRaceCondition()
+    ├─ [0] VM::prank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Return]
+    ├─ [46294] CampusToken::approve(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 100000000000000000000 [1e20])
+    │   ├─ emit Approval(owner: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], spender: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], amount: 100000000000000000000 [1e20])
+    │   └─ ← [Return] true
+    ├─ [0] VM::prank(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Return]
+    ├─ [59952] CampusToken::transferFrom(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 100000000000000000000 [1e20])
+    │   ├─ emit Transfer(from: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], to: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], amount: 100000000000000000000 [1e20])
+    │   └─ ← [Return] true
+    ├─ [0] VM::prank(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6])
+    │   └─ ← [Return]
+    ├─ [46294] CampusToken::approve(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 50000000000000000000 [5e19])
+    │   ├─ emit Approval(owner: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], spender: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], amount: 50000000000000000000 [5e19])
+    │   └─ ← [Return] true
+    ├─ [0] VM::prank(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e])
+    │   └─ ← [Return]
+    ├─ [42852] CampusToken::transferFrom(alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], 50000000000000000000 [5e19])
+    │   ├─ emit Transfer(from: alice: [0x328809Bc894f92807417D2dAD6b7C998c1aFdac6], to: bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e], amount: 50000000000000000000 [5e19])
+    │   └─ ← [Return] true
+    ├─ [2605] CampusToken::balanceOf(bob: [0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e]) [staticcall]
+    │   └─ ← [Return] 150000000000000000000 [1.5e20]
+    └─ ← [Stop]
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.02ms (104.75µs CPU time)
+
+Ran 1 test suite in 4.37ms (1.02ms CPU time): 1 tests passed, 0 failed, 0 skipped (1 total tests)

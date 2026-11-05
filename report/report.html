@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lab 04 — EVM internals, Merkle proofs and a production-grade ERC-20 · Khusanjon Ashuraliev</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10.2pt; line-height: 1.42; color: #1c1c1c; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 2pt; }
+  h2 { font-size: 14pt; margin: 18pt 0 5pt; break-after: avoid; }
+  h3 { font-size: 11pt; margin: 12pt 0 3pt; break-after: avoid; }
+  p { margin: 0 0 7pt; }
+  .sub { color: #555; margin-bottom: 9pt; }
+  table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt; font-size: 9.2pt; break-inside: avoid; }
+  th { text-align: left; background: #f1f3f5; border-bottom: 1.2pt solid #333; padding: 3pt 6pt; }
+  td { border-bottom: 0.6pt solid #d5d8dc; padding: 3pt 6pt; vertical-align: top; }
+  td.n, th.n { text-align: right; }
+  code, pre { font-family: Menlo, Consolas, monospace; }
+  code { font-size: 8.8pt; }
+  pre { font-size: 7.3pt; line-height: 1.3; background: #f6f7f8; border: 0.6pt solid #d5d8dc; padding: 6pt 8pt; margin: 4pt 0 9pt; white-space: pre-wrap; break-inside: avoid; }
+  .small { font-size: 8.6pt; color: #555; }
+  .formula { font-family: Georgia, "Times New Roman", serif; font-size: 10.6pt; text-align: center; margin: 5pt 0 8pt; }
+  ul, ol { margin: 0 0 7pt; padding-left: 16pt; }
+  li { margin-bottom: 2pt; }
+  .box { border: 0.6pt solid #d5d8dc; background: #fafbfc; padding: 6pt 9pt; margin: 4pt 0 9pt; break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<h1>Lab 04 — EVM internals, Merkle proofs and a production-grade ERC-20</h1>
+<div class="sub">Khusanjon Ashuraliev · Introduction to Blockchain Programming · Óbuda University, NIK · November 2026</div>
+
+<table>
+<tr><th style="width:18%">Item</th><th>Value</th></tr>
+<tr><td>Repository</td><td><code>https://github.com/KhusanAshuraliev/lab-04-evm-and-erc20</code></td></tr>
+<tr><td>Stack</td><td>Foundry 1.9.0, Solidity 0.8.24, EVM version Cancun, optimizer 200 runs. The only dependency is <code>forge-std</code> v1.16.2 for the tests. No OpenZeppelin, Solady or other token library: I wrote every contract in <code>src/</code> myself.</td></tr>
+<tr><td>Evidence</td><td>Every output quoted below is saved in <code>evidence/</code>: test runs, traces, <code>forge inspect</code>, the gas report, coverage, Slither, and the transcripts of the bonus challenges.</td></tr>
+<tr><td>Reproduce</td><td><code>forge build &amp;&amp; forge test</code>; <code>forge test --gas-report</code>; <code>slither . --exclude-dependencies</code>; <code>uv run airdrop/merkle.py build …</code> (E2); <code>bash script/e3_permit.sh</code> (E3)</td></tr>
+<tr><td>Tests</td><td><b>131 passed</b>: the course's three suites (65 tests), copied unchanged, plus 66 tests of my own. <code>forge coverage</code> of <code>src/</code>: <b>100 %</b> of lines, statements, branches and functions.</td></tr>
+</table>
+<p class="small">A note on gas figures. Foundry 1.9 runs tests with <code>isolate = true</code>, which executes each top-level call of a test as its own transaction. Gas measured around such a call therefore includes the 21,000 base cost of a transaction and its calldata. The course's expected values (for example 26,857 for the Solidity increment) were measured the same way, and my runs reproduce them exactly. Where I give an execution-only figure, I say so.</p>
+
+<h2>1. Storage layout of my token</h2>
+<pre>$ forge inspect CampusToken storageLayout
+| Name         | Type                                            | Slot | Offset | Bytes |
+| _balances    | mapping(address => uint256)                     | 0    | 0      | 32    |
+| _allowances  | mapping(address => mapping(address => uint256)) | 1    | 0      | 32    |
+| _totalSupply | uint256                                         | 2    | 0      | 32    |
+| _name        | string                                          | 3    | 0      | 32    |
+| _symbol      | string                                          | 4    | 0      | 32    |
+| nonces       | mapping(address => uint256)                     | 5    | 0      | 32    |
+| _members     | mapping(bytes32 => mapping(address => bool))    | 6    | 0      | 32    |
+| _admins      | mapping(bytes32 => bytes32)                     | 7    | 0      | 32    |
+| treasury     | address                                         | 8    | 0      | 20    |
+| feeBps       | uint16                                          | 8    | 20     | 2     |
+| paused       | bool                                            | 8    | 22     | 1     |
+| claimRoot    | bytes32                                         | 9    | 0      | 32    |
+| hasClaimed   | mapping(address => bool)                        | 10   | 0      | 32    |</pre>
+<p>The layout follows the inheritance order <code>ERC20 → ERC20Permit → AccessControl → CampusToken</code>, and within each contract the declaration order. Eleven slots (0–10) are used. The cap, the cached domain separator and the hashed version are <code>immutable</code>, so they live in the runtime code and have no row. The role ids and <code>MAX_FEE_BPS</code> are <code>constant</code> and have no row either.</p>
+<p><b>The one packed slot is slot 8.</b> <code>treasury</code> (20 bytes, offset 0), <code>feeBps</code> (2 bytes, offset 20) and <code>paused</code> (1 byte, offset 22) use 23 of the 32 bytes; bytes 23–31 are empty. I placed these three next to each other on purpose. <code>_update</code> reads all three on every transfer, so one cold <code>SLOAD</code> (2,100 gas) serves the whole check, where three separate slots would cost three. <code>test_PackedConfigurationSlot</code> sets the fee to 123 and pauses the token, then splits the raw word: bits 0–159 are the treasury, bits 160–175 are 123, bit 176 is 1, and everything above is zero. Every other slot holds one full word or is the anchor of a mapping or a string.</p>
+<p><b>Slot arithmetic for one mapping entry.</b> I declared <code>_balances</code> as the first variable, so it is slot 0. The balance of an account <i>a</i> is at</p>
+<div class="formula">slot(a) = keccak256( abi.encode(a, uint256(0)) ) — the address padded to 32 bytes, then the slot number</div>
+<p><code>test_BalanceSlotArithmetic</code> computes this slot for Alice, reads it with <code>vm.load</code> and gets 1000 × 10<sup>18</sup>, which equals <code>balanceOf(alice)</code>. Slot 0 itself reads zero (a mapping's own slot stays empty), and slot 2 reads exactly <code>totalSupply()</code>.</p>
+<p><b>The specimen contract.</b> <code>forge inspect StorageLayout storageLayout</code> shows <code>packedA</code>, <code>packedB</code>, <code>packedC</code> in slot 0 at offsets 0, 16, 24; <code>wide</code> alone in slot 1; <code>owner</code> and <code>flag</code> in slot 2 at offsets 0 and 20; the mapping, the array and the nested mapping in slots 3, 4, 5; <code>_notReallySecret</code> in slot 6. There is no row for <code>CONSTANT_VALUE</code> or <code>IMMUTABLE_VALUE</code>. All 10 tests of <code>StorageLayoutTest</code> pass. <code>test_PrivateStorageIsPubliclyReadable</code> reads the "private" value back with one <code>vm.load</code>, which on a live chain is one <code>eth_getStorageAt</code>. The packing test logs <b>89,134</b> gas for the bad order (3 slots) and <b>66,959</b> for the good order (2 slots). The difference of 22,175 gas is one zero-to-nonzero <code>SSTORE</code> (22,100) plus a little bookkeeping.</p>
+
+<h2>2. Solidity versus Yul: gas and the differential tests</h2>
+<p>I wrote two Yul functions of my own besides the course's <code>incrementYul</code>, <code>sumYul</code> and <code>guardYul</code>.</p>
+<ul>
+<li><b><code>MerkleYul.verifyYul</code></b> is a complete Merkle-proof verifier in assembly. It walks the proof straight from calldata and hashes each pair in the scratch space 0x00–0x3f. It orders the pair without a branch: with <i>x</i> = node ⊕ sibling, lo = node ⊕ (<i>x</i> · [sibling &lt; node]) and hi = <i>x</i> ⊕ lo. The Solidity reference is my <code>MerkleProof.verify</code>, which the token uses.</li>
+<li><b><code>YulCounter.sumCheckedYul</code></b> sums a calldata array and, on overflow, reverts with exactly the bytes that Solidity's checked arithmetic produces: <code>Panic(uint256)</code>, selector 0x4e487b71, code 0x11. So it must agree with <code>sumSolidity</code> on <i>every</i> input, including the ones that revert.</li>
+</ul>
+<table>
+<tr><th>Function</th><th class="n">Solidity gas</th><th class="n">Yul gas</th><th class="n">Saved</th><th>Where the saving comes from</th></tr>
+<tr><td>increment (warm slot)</td><td class="n">26,857</td><td class="n">26,799</td><td class="n">58 (0.2 %)</td><td>one overflow check; the <code>SSTORE</code> (2,900) and the transaction (21,000) dominate</td></tr>
+<tr><td>checked sum of 100 words</td><td class="n">31,664</td><td class="n">23,391</td><td class="n">8,273 (26 %)</td><td>per element Solidity does a bounds check, a checked add and a checked <code>i++</code>; Yul does one <code>lt</code></td></tr>
+<tr><td>Merkle verify, 14 levels</td><td class="n">10,461</td><td class="n">9,310</td><td class="n">1,151 (11 %)</td><td>no bounds checks, no branch for the pair order, no memory copy of the proof</td></tr>
+</table>
+<p>Differential tests (<code>test/YulDifferential.t.sol</code> and the course's <code>YulCounterTest</code>), 512 runs each:</p>
+<ul>
+<li><code>testFuzz_CheckedSumAgreesIncludingReverts(uint256[])</code> calls both versions with low-level <code>staticcall</code>s and asserts the same success flag and the <b>same return data or the same revert data</b>. With full 256-bit inputs, overflow is common, and in that case it also asserts that the bytes equal <code>stdError.arithmeticError</code>.</li>
+<li><code>testFuzz_MerkleAgreesOnRealTrees</code> builds a random tree of 2<sup>0</sup>…2<sup>8</sup> leaves, checks that both versions accept the right proof for a random leaf, flips one bit of one proof element, and checks that both reject it.</li>
+<li><code>testFuzz_MerkleAgreesOnGarbage</code> compares both on arbitrary words. It then recomputes the root from the same garbage, so that the "true" path is fuzzed as well as the "false" path. <code>test_MerkleEqualSiblings</code> covers the corner case lo = hi.</li>
+<li><code>testFuzz_SumImplementationsAgree</code> and <code>testFuzz_GuardImplementationsAgree</code> (course) compare the unchecked sum and the custom-error revert.</li>
+</ul>
+<p>The two big savings are on loops over calldata, where the compiler repeats its checks for every element. The increment shows the other side: when the cost is one storage write, assembly saves almost nothing and removes a check the reader must now verify by hand. I use assembly in the token only for hashing in the scratch space, and in the proxy for forwarding return data of unknown length.</p>
+
+<h2>3. The proxy storage collision, and why it is silent</h2>
+<pre>$ forge test --match-test test_BrokenProxyFailsSilentlyAfterCollision -vvvvv
+  ├─ new BrokenProxy@0xF62849F9…
+  │   ├─ storage changes:
+  │   │   @ 0: 0 → 0x…5615deb798bb3e4dfa0139dfa1b3d433cc23b72f        (the address of LogicV1)
+  ├─ [30313] BrokenProxy::fallback(57005)
+  │   ├─ [4208] LogicV1::setValue(57005) [delegatecall]
+  │   │   ├─ emit ValueSet(value: 57005)
+  │   │   ├─ storage changes:
+  │   │   │   @ 0: 0x…5615deb798bb3e4dfa0139dfa1b3d433cc23b72f → 57005   (0xDEAD)
+  │   └─ ← [Return]
+  ├─ [25950] BrokenProxy::fallback()
+  │   ├─ [0] 0x000000000000000000000000000000000000dEaD::value() [delegatecall]
+  │   │   └─ ← [Stop]
+  │   └─ ← [Return]</pre>
+<p><b>What happens.</b> <code>BrokenProxy</code> keeps <code>implementation</code> in slot 0, and <code>LogicV1</code> keeps <code>value</code> in slot 0. A <code>delegatecall</code> runs LogicV1's code against the <i>proxy's</i> storage, so an ordinary <code>setValue(0xDEAD)</code> succeeds and writes 57005 = 0xDEAD into slot 0 of the proxy, right over the implementation address. The next call is delegated to address 0xDEAD, which has no code. The trace shows <code>[0]</code> gas used, <code>Stop</code>, and the proxy returns successfully with <b>empty data</b>. Nothing reverts anywhere in the trace. My extra test <code>test_BrokenProxyReturnsNothingAfterCollision</code> shows that <code>value()</code> now returns zero bytes, and that a further <code>setValue(1)</code> also "succeeds" while slot 0 stays 0xDEAD: nothing is written.</p>
+<p><b>Why it is silent and not a revert</b>, in two halves:</p>
+<ol>
+<li><b>The EVM treats a call to an address without code as a successful no-op.</b> Executing empty code is the same as executing <code>STOP</code>: the call returns success = 1 with no return data. This is how plain ETH transfers to an EOA work, so it cannot be an error.</li>
+<li><b>The protection Solidity normally adds does not apply here.</b> For a high-level call such as <code>LogicV1(x).value()</code>, Solidity checks <code>extcodesize(x) &gt; 0</code> before the call and reverts otherwise. The proxy issues its <code>delegatecall</code> from inline assembly, where no such check exists, and it forwards whatever came back (nothing) as a success.</li>
+</ol>
+<p>The only place where anything fails is in a caller that tries to decode a <code>uint256</code> from zero bytes, and that caller does not know why. The function that could repair the pointer was in the code that is no longer reachable, so the proxy is bricked for good, which is the shape of the Parity incident.</p>
+<p><b>The fix</b> (<code>SafeProxy</code>) keeps the implementation and the admin at the EIP-1967 slots <code>keccak256("eip1967.proxy.implementation") − 1</code> = 0x3608…2bbc and <code>keccak256("eip1967.proxy.admin") − 1</code> = 0xb531…6103. Both tests assert these constants. No variable, mapping entry or array element can land there. <code>test_SafeProxyAvoidsCollision</code> writes 0xDEAD to slot 0 and the pointer survives. <code>test_UpgradePreservesState</code> reads a value stored under V1 through V2 (21, then 42 after the multiplier). <code>upgradeTo</code>, and in my version also the constructor, refuse an address without code (<code>NotAContract</code>), which turns the silent failure above into a revert. All 8 course tests of <code>ProxyTest</code> and my 4 in <code>ProxyExtraTest</code> pass.</p>
+
+<h2>4. The approve race</h2>
+<p><code>test_ApproveRaceCondition</code> passes; the trace (<code>evidence/part_c_approve_race.txt</code>) shows the calls in this order and ends with <code>balanceOf(bob) = 150 × 10<sup>18</sup></code>:</p>
+<ol>
+<li>Alice calls <code>approve(Bob, 100)</code>. It is mined; the allowance is 100.</li>
+<li>Alice changes her mind and broadcasts <code>approve(Bob, 50)</code>. It waits in the mempool.</li>
+<li>Bob sees it in the mempool and front-runs it with <code>transferFrom(Alice, Bob, 100)</code> at a higher fee. His transaction is mined first; he receives 100 and the allowance drops to 0.</li>
+<li>Alice's transaction is mined. It does not reduce anything: it <i>sets</i> the allowance to 50.</li>
+<li>Bob calls <code>transferFrom(Alice, Bob, 50)</code>. In total he has taken 150 from an owner who never meant to allow more than 100.</li>
+</ol>
+<p><b>Root cause.</b> <code>approve</code> overwrites the allowance with a new value; it cannot express "only if it is still 100". Between Alice's decision and the moment her transaction runs, the old allowance can be used up, and the new value is then granted on top.</p>
+<p><b>Mitigations.</b> Approve to 0 first, wait until that is mined, check how much was spent, and then approve the new amount. Better, use <code>permit</code>: every authorisation is signed for one specific nonce and is consumed when used, so an old authorisation can never stack with a new one. The race is part of the ERC-20 interface, so I did not "fix" it inside <code>approve</code>; the test demonstrates it.</p>
+
+<h2>5. Merkle allowlist against a mapping, for 10,000 recipients</h2>
+<p>I measured both approaches in <code>test/Airdrop.t.sol</code>. For the mapping I wrote <code>MappingAllowlist.setMany</code>, which stores one allocation per recipient, and called it once with 10,000 entries. For the Merkle approach I set the root produced by my tool (bonus E2), and I claimed with real 14-element proofs.</p>
+<table>
+<tr><th>Approach</th><th class="n">Deployer pays (measured)</th><th class="n">Claimant pays (measured)</th></tr>
+<tr><td><code>mapping(address =&gt; uint256)</code>, 10,000 entries</td><td class="n"><b>238,763,639 gas</b> (23,876 per entry)</td><td class="n">83,887 per claim</td></tr>
+<tr><td>Merkle root, 10,000 leaves</td><td class="n"><b>47,747 gas</b> for <code>setClaimRoot</code> (26,747 without the 21,000 base)</td><td class="n">88,901–108,275 per claim, median 90,413</td></tr>
+</table>
+<p><b>The deployer's side.</b> The mapping needs one zero-to-nonzero <code>SSTORE</code> (22,100) per recipient, plus loop and calldata costs: 238.8 million gas. That is <b>eight full 30-million-gas blocks</b>, so it cannot even be sent as one transaction; it would have to be split into at least eight, and it would cost the deployer about 5,000 times as much as the root. The root is one <code>SSTORE</code> plus the role check and the event.</p>
+<p><b>The claimant's side.</b> A Merkle claim costs about 6,500 gas more than a mapping claim, because the claimant sends the 14 proof words (448 bytes of calldata, about 7,000 gas) and hashes 14 pairs. The hashing itself is small: about 14 × 70 ≈ 1,000 gas, roughly 1 % of the claim. Two fresh storage writes dominate: <code>hasClaimed[msg.sender] = true</code> (22,100) and the claimant's balance going from zero to non-zero (22,100). Then come the 21,000 base cost and the update of <code>totalSupply</code>. The most expensive claim, 108,275, was the very first one, where <code>totalSupply</code> itself went from 0 to non-zero (another ~17,000). With the course's 2-element proofs a claim costs 64,941. In short, the Merkle root moves almost the whole cost from one deployer to the recipients who actually claim, and each of them pays only a little more than with a mapping.</p>
+
+<h2>6. Invariants</h2>
+<p>I ran two invariant suites: the course's <code>CampusTokenInvariantTest</code>, unchanged, and my own <code>CampusTokenModelTest</code>. My handler drives eight actions on five actors: transfer, transferFrom with a partial allowance, a permit followed by a spend, mint, burn, claim, a fee change, and moving the treasury to another actor. It also keeps an independent <b>model</b> of every balance, updated with my own fee arithmetic. Both suites ran 64 runs × 32 calls = 2,048 calls each with <b>0 reverts</b>, so every call did real work.</p>
+<pre>CampusTokenInvariantTest invariants (runs: 64, calls: 2048, reverts: 0)
+[PASS] invariant_FeeStaysWithinTheHardLimit      [PASS] invariant_SumOfBalancesEqualsTotalSupply
+[PASS] invariant_SupplyMatchesMintMinusBurn      [PASS] invariant_TotalSupplyNeverExceedsCap
+CampusTokenModelTest invariants (runs: 64, calls: 2048, reverts: 0)
+[PASS] invariant_BalancesMatchTheModel           [PASS] invariant_FeeWithinLimit
+[PASS] invariant_NoncesAndClaimsAreExact         [PASS] invariant_SumOfBalancesIsSupply
+[PASS] invariant_SupplyIsMintedMinusBurned       [PASS] invariant_SupplyWithinCap</pre>
+<table>
+<tr><th style="width:42%">Invariant, in one sentence</th><th>A failure would mean</th></tr>
+<tr><td><b>Sum of balances = total supply</b>: the balances of all holders add up to <code>totalSupply</code>.</td><td>a balance changed without the supply, or the other way round: tokens appeared or vanished outside the accounting, typically in the fee path</td></tr>
+<tr><td><b>Total supply = minted − burned</b>: the supply can be rebuilt from the history of mints (including claims) and burns alone.</td><td>a hidden mint or burn path: some code creates or destroys tokens without going through <code>mint</code>, <code>claim</code> or <code>burn</code></td></tr>
+<tr><td><b>Total supply ≤ cap</b>.</td><td>a mint path that skips the cap check</td></tr>
+<tr><td><b>Fee ≤ hard maximum</b>: <code>feeBps</code> never exceeds 500.</td><td>a configuration path around <code>setFeeBps</code>; an admin could raise the fee and confiscate transfers</td></tr>
+<tr><td><b>Every balance equals my model</b> (mine).</td><td>tokens went to the wrong account even though the totals are right, for example a fee rounded the wrong way or sent to the old treasury</td></tr>
+<tr><td><b>Nonces and claims are exact</b> (mine): <code>nonces(a)</code> counts the permits <i>a</i> signed, and <code>hasClaimed(a)</code> is true exactly for accounts that claimed.</td><td>a signature could be used twice or not at all, or an allocation could be claimed twice</td></tr>
+</table>
+<p><b>Do they catch a real bug?</b> In a scratch copy I planted the classic fee-on-transfer mistake: the fee was <i>minted</i> to the treasury instead of moved from the sender (<code>evidence/invariants_catch_planted_bug.txt</code>). Five invariants failed at once: "supply = minted − burned", "supply ≤ cap" (in both suites) and "balances match the model". The interesting part is which one did <b>not</b> fail: <b>sum of balances = total supply</b> kept passing, because a hidden mint raises the balances and the supply by the same amount. The ghost counters of minted and burned tokens, kept outside the contract, are what catch it. This is why I count "supply = minted − burned" as the most important invariant of a fee token.</p>
+
+<h2>7. Slither</h2>
+<pre>$ slither . --exclude-dependencies          # Slither 0.11.4, 100 detectors
+INFO:Slither:. analyzed (21 contracts with 100 detectors), 21 result(s) found</pre>
+<p>The run with <code>--filter-paths "test|script|lib"</code> gives the same 21 results. <b>None of them is in <code>CampusToken.sol</code> or in <code>src/lib/</code>.</b> In a first run there was one: <code>uninitialized-local</code> for <code>uint256 fee;</code> in <code>_update</code>, which relied on the default zero on purpose. I wrote <code>uint256 fee = 0;</code> to make the intent explicit and the finding went away. My triage of the 21:</p>
+<table>
+<tr><th style="width:22%">Detector (count)</th><th style="width:28%">Where</th><th>Triage</th></tr>
+<tr><td><code>assembly</code> (10)</td><td>YulCounter ×4, MerkleYul, Forwarder, SafeProxy ×2, SafeProxyWithInit, StorageLayout.readSlot</td><td>Intended. The Yul functions exist to be compared with Solidity and are covered by differential tests. The proxy needs assembly to forward return data of unknown length and to use the EIP-1967 slots. <code>readSlot</code> demonstrates reading a private slot. All blocks except the forwarding ones are marked <code>memory-safe</code>.</td></tr>
+<tr><td><code>missing-zero-check</code> (3)</td><td>BrokenProxy constructor, SafeProxyWithInit constructor, StorageLayout.setOwnerAndFlag</td><td>BrokenProxy is the deliberate bug. For SafeProxyWithInit it is a <b>false positive</b>: the base constructor <code>SafeProxy(impl, …)</code> runs first and reverts with <code>NotAContract</code> for any address without code, the zero address included, before the <code>delegatecall</code> is reached. The setter of the specimen has no meaning to protect.</td></tr>
+<tr><td><code>naming-convention</code> (3)</td><td><code>__gap</code> ×2, <code>IMMUTABLE_VALUE</code></td><td>Intended. <code>__gap</code> is the established name of a storage gap, which upgrade tools look for. <code>IMMUTABLE_VALUE</code> is the name the course tests call.</td></tr>
+<tr><td><code>locked-ether</code> (1)</td><td>BrokenProxy</td><td>True for the broken proxy after the collision (its fallback is payable and the code it forwards to is gone), and part of what it demonstrates. <code>SafeProxy</code> is not reported: plain ETH is forwarded to the logic, which refuses it (<code>test_ProxyRefusesPlainEth</code>).</td></tr>
+<tr><td><code>low-level-calls</code> (1)</td><td>SafeProxyWithInit constructor</td><td>Intended: a <code>delegatecall</code> of the initializer during construction, so that no one can front-run <code>initialize</code>. Its failure is checked and the revert data is bubbled up (<code>test_RevertWhen_InitializedWithZeroCap</code>).</td></tr>
+<tr><td><code>unindexed-event-address</code> (1)</td><td>SafeProxy.AdminChanged</td><td>Intended: EIP-1967 defines <code>AdminChanged(address previousAdmin, address newAdmin)</code> without indexed fields, and explorers decode it by that exact signature.</td></tr>
+<tr><td><code>constable-states</code> (1), <code>immutable-states</code> (1)</td><td>UpgradeableBase.baseValue, BrokenProxy.implementation</td><td>False positives for what they demonstrate. A constant or immutable would occupy no slot, and the whole point of both variables is that they occupy one.</td></tr>
+</table>
+<p><b>What Slither cannot find.</b> Slither matches code patterns, not intent. It would not notice the approve race, because that is the specified behaviour of ERC-20. It would not notice a fee that is correct but economically wrong (say 5 % on a stablecoin), a wrong but well-formed constant, or a mint that is allowed but should not be. The wrong n/2 constant in the reference <code>ECDSA.sol</code> (section 12) is exactly such a bug: the constant is well-formed, and only knowing what it <i>should</i> be reveals the error. A fuzz test with random keys found it on its first run.</p>
+
+<h2>8. Three vulnerabilities my contract does not have</h2>
+<div class="box">
+<p><b>1. Signature forgery through ecrecover's failure modes</b> (malleability and the zero address). <code>ecrecover</code> accepts both (r, s) and (r, n − s) for the same message, and returns <code>address(0)</code> instead of reverting for a malformed signature. <code>ECDSA.recover</code> (<code>src/lib/ECDSA.sol</code>), which <code>permit</code> calls, first rejects every s &gt; n/2 with <code>InvalidSignatureS</code> and then rejects a zero result with <code>InvalidSignature</code>. Without the second check, <code>permit(address(0), spender, …)</code> with garbage bytes would "prove" that the zero address signed. Tests: <code>test_RevertWhen_PermitUsesHighS</code>, <code>test_RevertWhen_SignatureIsGarbage</code>, and <code>testFuzz_PermitFromAnyKey</code>, which checks over 512 random keys that the honest signature passes and its high-s twin fails.</p>
+<p><b>2. Permit replay: the same signature twice, on another chain, or through another proxy.</b> In <code>ERC20Permit.permit</code> the line <code>uint256 nonce = nonces[owner]++;</code> builds the digest with the current nonce and uses it up in the same statement, so a second submission is checked against nonce + 1 and recovers an unrelated address. <code>DOMAIN_SEPARATOR()</code> returns the cached value only while <code>block.chainid</code> and <code>address(this)</code> both equal their values at deployment; otherwise it rebuilds the separator with the current ones. A signature therefore binds to one chain and one token address. Tests: <code>test_RevertWhen_PermitReplayed</code>, <code>test_RevertWhen_PermitReplayedOnAnotherChain</code>, <code>test_DomainSeparatorDependsOnChainId</code>, <code>test_DomainSeparatorUsesTheProxyAddress</code>; on anvil, step 8 of bonus E3.</p>
+<p><b>3. Cap bypass and double claim through the airdrop.</b> <code>claim</code> (<code>src/CampusToken.sol</code>) has no balance logic of its own. It sets <code>hasClaimed[msg.sender] = true</code> <i>before</i> it calls <code>_mint</code>, and <code>_mint</code> goes through <code>CampusToken._update</code>. There, <code>if (newSupply &gt; cap_) revert CapExceeded(…)</code> is the only cap check, shared by <code>mint</code> and <code>claim</code>. A second claim stops at <code>AlreadyClaimed</code>. A claim that would cross the cap reverts with the same error as an over-cap mint, and the revert also undoes the <code>hasClaimed</code> write. Tests: <code>test_RevertWhen_ClaimedTwice</code>, <code>test_ClaimHitsTheCapWithCapExceeded</code>, <code>test_RevertWhen_ClaimIsPaused</code> (which also asserts that a failed claim is not recorded), and the invariant "total supply ≤ cap" with claims in the handler.</p>
+</div>
+
+<h2>9. Bonus E2 — a real-sized airdrop</h2>
+<p><code>airdrop/merkle.py</code> (Python, run with <code>uv</code>; keccak-256 from <code>pycryptodome</code>, because <code>hashlib.sha3_256</code> is the NIST variant with different padding) reads a CSV of <code>address,amount</code> rows and writes the root and every proof to JSON. It uses exactly the contract's encoding: leaf = keccak256(keccak256(abi.encode(account, amount))), and each pair is hashed in ascending order. When a level has an odd number of nodes, I pair the last node with <code>bytes32(0)</code>. Zero is not a hash anyone can produce, so the padding can never be claimed, and every proof of a 10,000-leaf tree has exactly ⌈log<sub>2</sub> 10,000⌉ = 14 elements. The tool refuses a CSV with duplicate addresses, and before writing it checks every proof against the root.</p>
+<pre>$ uv run airdrop/merkle.py generate airdrop/recipients.csv 10000
+$ uv run airdrop/merkle.py build airdrop/recipients.csv airdrop/proofs.json
+recipients : 10000
+root       : 0xfb162494eb295d5959948596d8fe4bad6cb720537cb98a6657b710525c3c129b
+proof size : 14 elements for every recipient (ceil(log2 10000))
+checked    : all 10000 proofs verify against the root in Python
+time       : 0.62 s</pre>
+<p><code>test/Airdrop.t.sol</code> loads the 11.5 MB JSON with <code>vm.readFile</code> and <code>vm.parseJson*</code>, deploys the token with that root, and claims for entries 0 (first), 9,999 (last) and 9,159 (random). For each it asserts 14 proof elements, that <code>leafFor</code> in Solidity equals the leaf Python computed, the minted amount, and <code>hasClaimed</code>. <code>test_RealProofGuards</code> then shows that a real proof fails with amount + 1, fails for another sender, and fails a second time. The measured claim gas, 88,901–108,275, is compared with the mapping in section 5: the table in the lab sheet estimates "~14 hashes" for the claimant, and my measurement shows that the hashes are only about 1 % of what a claimant actually pays.</p>
+
+<h2>10. Bonus E3 — permit from a real signature</h2>
+<p><code>script/e3_permit.sh</code> starts <code>anvil</code> and deploys the token with <code>forge script script/Deploy.s.sol --broadcast</code> (development key #0). It mints 1,000 CMPS to the owner (key #1) and signs this typed data <b>outside Solidity</b> with <code>cast wallet sign --data --from-file</code>:</p>
+<pre>{ "types": {
+    "EIP712Domain": [ {"name":"name","type":"string"}, {"name":"version","type":"string"},
+                      {"name":"chainId","type":"uint256"}, {"name":"verifyingContract","type":"address"} ],
+    "Permit": [ {"name":"owner","type":"address"}, {"name":"spender","type":"address"},
+                {"name":"value","type":"uint256"}, {"name":"nonce","type":"uint256"},
+                {"name":"deadline","type":"uint256"} ] },
+  "primaryType": "Permit",
+  "domain":  { "name": "Campus Token", "version": "1", "chainId": 31337,
+               "verifyingContract": "0x5FbDB2315678afecb367f032d93F642f64180aa3" },
+  "message": { "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+               "spender": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+               "value": "250000000000000000000", "nonce": 0, "deadline": 1793891262 } }</pre>
+<p>The script splits the 65-byte signature into r, s and v, and the <b>spender</b> (key #2) submits it with <code>cast send … "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)"</code>. Results (<code>evidence/e3_permit.txt</code>):</p>
+<ul>
+<li>the <code>permit</code> transaction has <b>status 1 (success)</b>, 74,560 gas, paid by the spender;</li>
+<li><code>cast call … allowance(owner, spender)</code> returns <b>250000000000000000000</b>, the signed value, and <code>nonces(owner)</code> returns <b>1</b>; the owner has sent <b>0</b> transactions;</li>
+<li>resubmitting the same signature <b>reverts</b> with <code>InvalidPermitSigner(0x3416…8e5b, owner)</code>: the digest is now built with nonce 1 and recovers an unrelated address;</li>
+<li>the spender then moves 100 CMPS with <code>transferFrom</code>, leaving an allowance of 150.</li>
+</ul>
+<p><b>Which field I got wrong first.</b> Honestly, none on my first run. I had the troubleshooting list of the lab sheet in front of me, so I took the domain name from <code>name()</code>, version "1", chain id 31337 from <code>cast chain-id</code>, and the address the deployment actually produced. I also wrote <code>value</code> as a decimal string, because 250 × 10<sup>18</sup> is larger than any number JSON tools represent exactly. To see what a wrong field looks like, the script then signs the same message with version "1.0". That <code>permit</code> reverts with <code>InvalidPermitSigner(0xA55A…3e4b, owner)</code>. The contract cannot tell <i>which</i> field differs. It only sees that the signature recovers to some other address, which is why one wrong character anywhere in the domain looks the same as a wrong key.</p>
+
+<h2>11. Bonus E4 — an upgradeable token</h2>
+<p><code>CampusTokenUpgradeable</code> inherits all of <code>CampusToken</code> and runs behind my EIP-1967 <code>SafeProxy</code>. It replaces the constructor with <code>initialize</code>, which may run only once (<code>AlreadyInitialized</code>), and it keeps the cap in storage, because an immutable lives in the implementation's code and would be shared by every proxy. The implementation's own constructor marks the implementation as initialised, so nobody can initialise it directly and make themselves its admin. <code>SafeProxyWithInit</code> runs <code>initialize</code> inside the proxy's constructor, so there is never a moment when the proxy exists uninitialised. Behind the proxy <code>address(this)</code> is the proxy, so <code>DOMAIN_SEPARATOR()</code> is rebuilt with the proxy's address and name. <code>CampusTokenV2</code> adds one state variable, <code>maxTransfer</code>, and one function, <code>setMaxTransfer</code> (CONFIG_ROLE), which limits ordinary transfers but not mint or burn.</p>
+<pre>variable      V1 slot/offset  V2 slot/offset  check            (forge inspect, evidence/e4_layout_v1_v2.txt)
+_balances…hasClaimed   0 … 10          0 … 10  unchanged
+_storedCap               11/0            11/0  unchanged
+_initialized             12/0            12/0  unchanged
+__gap (uint256[48])     13/0            13/0  unchanged   (slots 13–60)
+maxTransfer                 -            61/0  NEW, appended
+no existing slot changed: True</pre>
+<p>The 13 tests in <code>test/Upgradeable.t.sol</code> pass. Some highlights:</p>
+<ul>
+<li><code>test_UpgradeKeepsAllState</code> creates balances, a fee payment to the treasury, an <code>approve</code>, a <code>permit</code> (nonce 1), an extra minter and a claim, then upgrades. Afterwards all balances, the supply (1,505 CMPS), both allowances, the nonce, all roles, the fee, the treasury, the cap, <code>hasClaimed</code>, the name and the domain separator are unchanged. A permit signed for nonce 1 works after the upgrade, and a second <code>initialize</code> still reverts.</li>
+<li><code>test_RevertWhen_UpgradeByNonAdmin</code> shows that even the token's admin is refused with <code>NotAdmin</code>: only the proxy admin may upgrade.</li>
+<li><code>test_V2AppendsItsVariable</code> reads slot 11 (the cap) and slot 61 (<code>maxTransfer</code> = 777) on the live proxy.</li>
+<li><code>test_V2NewFunction</code> shows that the new limit and its role check work.</li>
+</ul>
+<p><b>What would break if V2 inserted the variable at the top.</b> I tested it instead of only describing it. <code>CampusTokenV2Wrong</code> puts <code>maxTransfer</code> in a base contract that comes first in the inheritance order. <code>forge inspect</code> shows it in slot 0, and every old variable moved down one slot. After the upgrade (<code>test_PrependingAVariableCorruptsEverything</code>):</p>
+<ul>
+<li><code>balanceOf(alice)</code> reads 0, because balances are now looked up from slot 1, where the allowances live;</li>
+<li><code>totalSupply</code> reads slot 3, which holds the encoded string "Campus Token";</li>
+<li>the admin has lost <code>DEFAULT_ADMIN_ROLE</code>, because the role table is now looked up from slot 7, where the role admins used to be;</li>
+<li><code>cap()</code> reads slot 12, which held the <code>_initialized</code> flag, so the cap is now <b>1 wei</b> and every mint reverts.</li>
+</ul>
+<p>Nothing reverts during the upgrade itself. The new code simply reads the old storage with the wrong names, the same silence as in section 3.</p>
+
+<h2>12. A bug I found in the reference code</h2>
+<p>While writing my <code>ECDSA.sol</code> I computed n/2 for secp256k1 myself and compared it with the reference: <code>0x7FFF…681B20A</code> has <b>63</b> hex digits, while n/2 = <code>0x7FFF…681B20A0</code> has 64. The reference constant is therefore n/32, and <code>recover</code> rejects every honest signature with s between n/32 and n/2 — about 15 out of 16. The course suite does not notice, because all of its permit tests sign the same digest with the same key, whose s happens to be small. A fuzz test that signs with random keys fails on its first run against the reference (<code>evidence/reference_ecdsa_constant.txt</code>). My constant is correct. <code>testFuzz_PermitFromAnyKey</code> passes for 512 random keys, and <code>test_HonestSignaturesUseTheWholeLowerHalf</code> shows that most honest signatures do have s &gt; n/32.</p>
+
+<h2>13. Requirements and tests</h2>
+<table>
+<tr><th style="width:4%">#</th><th style="width:22%">Requirement</th><th>Evidence that it is done</th></tr>
+<tr><td>1</td><td>ERC-20, single funnel</td><td><code>grep</code> over <code>src/</code> finds the only four writes to <code>_balances</code> and <code>_totalSupply</code> at lines 125–142 of <code>ERC20.sol</code>, all inside <code>_update</code>. <code>Transfer</code> is emitted for mint (from 0), burn (to 0), transfers and both legs of a fee transfer; <code>Approval</code> for <code>approve</code> and <code>permit</code>. A transfer to address 0 reverts with <code>InvalidReceiver</code>, an overdraft with <code>InsufficientBalance</code>.</td></tr>
+<tr><td>2</td><td>Cap and roles</td><td>Minting past the cap reverts through <code>mint</code> and <code>claim</code> (<code>CapExceeded</code>); burning frees headroom. The deployer holds none of the four roles. MINTER, PAUSER and CONFIG on three different accounts can each do only their own job; non-holders get <code>MissingRole</code>; a revoked minter cannot mint.</td></tr>
+<tr><td>3</td><td>Transfer fee</td><td>1,000 at 1 % gives 990 + 10; mint, burn and treasury transfers pay none; the supply is unchanged by any transfer; 501 bps is rejected with <code>FeeTooHigh(501, 500)</code>; 3 wei at 2.5 % succeeds without a fee; <code>testFuzz_FeeSplit</code>.</td></tr>
+<tr><td>4</td><td>Permit</td><td>A valid permit sets the allowance and moves the nonce to 1. Expired (<code>PermitExpired</code>), replayed and wrong-signer permits revert (<code>InvalidPermitSigner</code>), as do high s (<code>InvalidSignatureS</code>) and garbage (<code>InvalidSignature</code>). <code>DOMAIN_SEPARATOR()</code> changes after <code>vm.chainId</code> and equals the EIP-712 formula before and after.</td></tr>
+<tr><td>5</td><td>Merkle claim</td><td>One valid claim mints exactly the leaf's amount. A second claim (<code>AlreadyClaimed</code>), another account's proof, a wrong amount, an internal node as a leaf, and the second-preimage "account" built from two leaves all revert (<code>InvalidMerkleProof</code>). Real 14-element proofs come from E2.</td></tr>
+<tr><td>6</td><td>Yul</td><td>Section 2: two Yul functions of my own. Differential fuzzing over 512 runs compares return data <i>and</i> revert data. Gas: 31,664 → 23,391 and 10,461 → 9,310.</td></tr>
+<tr><td>7</td><td>Proxy collision and EIP-1967</td><td>Section 3. Broken proxy: success with empty data after the collision. Safe proxy: pointer kept, V1 state readable under V2, an upgrade to a non-contract reverts.</td></tr>
+<tr><td>8</td><td>Tests</td><td>Every custom error of my contracts is triggered by at least one test. <code>forge coverage</code> of <code>src/</code>: 100 % lines (326/326), statements (303/303), branches (46/46), functions (95/95). Fuzz tests: 5 from the course and 6 of mine, 512 runs each. Invariants: 10 across two suites, 0 reverts in 4,096 calls.</td></tr>
+</table>
+<pre>$ forge test --match-path "test/{CampusToken,CampusTokenInvariant,EvmInternals}.t.sol"     # the course suite, unchanged
+Ran 5 test suites in 263.22ms (352.41ms CPU time): 65 tests passed, 0 failed, 0 skipped (65 total tests)
+
+$ forge test
+Ran 11 test suites in 1.72s (3.69s CPU time): 131 tests passed, 0 failed, 0 skipped (131 total tests)</pre>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Bonus E4: storage layout of V1 (CampusTokenUpgradeable) and V2 (CampusTokenV2),
+# from `forge inspect <Contract> storageLayout`.
+
+variable      type                                                V1 slot/offset  V2 slot/offset  check
+_balances     mapping(address => uint256)                                    0/0             0/0  unchanged
+_allowances   mapping(address => mapping(address => uint256))                1/0             1/0  unchanged
+_totalSupply  uint256                                                        2/0             2/0  unchanged
+_name         string                                                         3/0             3/0  unchanged
+_symbol       string                                                         4/0             4/0  unchanged
+nonces        mapping(address => uint256)                                    5/0             5/0  unchanged
+_members      mapping(bytes32 => mapping(address => bool))                   6/0             6/0  unchanged
+_admins       mapping(bytes32 => bytes32)                                    7/0             7/0  unchanged
+treasury      address                                                        8/0             8/0  unchanged
+feeBps        uint16                                                        8/20            8/20  unchanged
+paused        bool                                                          8/22            8/22  unchanged
+claimRoot     bytes32                                                        9/0             9/0  unchanged
+hasClaimed    mapping(address => bool)                                      10/0            10/0  unchanged
+_storedCap    uint256                                                       11/0            11/0  unchanged
+_initialized  bool                                                          12/0            12/0  unchanged
+__gap         uint256[48]                                                   13/0            13/0  unchanged
+maxTransfer   uint256                                                          -            61/0  NEW, appended
+
+V1 uses slots 0..60; V2 adds exactly one variable after them; no existing slot changed: True

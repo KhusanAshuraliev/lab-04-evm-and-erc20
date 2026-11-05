@@ -1,0 +1,20 @@
+# Planted bug (scratch copy only): in CampusToken._update the fee is MINTED to the
+# treasury (super._update(address(0), treasury, fee)) instead of moved from the sender.
+
+$ forge test --match-contract "Invariant|Model"
+[FAIL: the fee must move value, not create it: 852542612970282498450878 != 852124050944810093404175] invariant_SupplyMatchesMintMinusBurn
+[FAIL: assertion failed: 1000001112527731977236098 > 1000000000000000000000000] invariant_TotalSupplyNeverExceedsCap
+[PASS] invariant_FeeStaysWithinTheHardLimit
+[PASS] invariant_SumOfBalancesEqualsTotalSupply
+ CampusTokenInvariantTest invariants (runs: 64, calls: 2048, reverts: 12)
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 225.14ms (212.33ms CPU time)
+[FAIL: balance differs from the model: 1999999999999999989267 != 1999999999999999989264] invariant_BalancesMatchTheModel
+[FAIL: assertion failed: 10000000000000000000003 != 10000000000000000000000] invariant_SupplyIsMintedMinusBurned
+[FAIL: assertion failed: 100011929618826824485442 > 100000000000000000000000] invariant_SupplyWithinCap
+[PASS] invariant_FeeWithinLimit
+[PASS] invariant_NoncesAndClaimsAreExact
+[PASS] invariant_SumOfBalancesIsSupply
+ CampusTokenModelTest invariants (runs: 64, calls: 2048, reverts: 17)
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 567.49ms (554.51ms CPU time)
+ CampusTokenInvariantTest invariants (runs: 64, calls: 2048, reverts: 12)
+ CampusTokenModelTest invariants (runs: 64, calls: 2048, reverts: 17)

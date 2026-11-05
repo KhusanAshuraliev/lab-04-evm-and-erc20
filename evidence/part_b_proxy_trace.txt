@@ -1,0 +1,39 @@
+$ forge test --match-test test_BrokenProxyFailsSilentlyAfterCollision -vvvvv
+
+Ran 1 test for test/EvmInternals.t.sol:ProxyTest
+[PASS] test_BrokenProxyFailsSilentlyAfterCollision() (gas: 218633)
+Traces:
+  [337611] ProxyTest::setUp()
+    ├─ [138225] VM::deployCode("src/evm/Proxy.sol:LogicV1")
+    │   ├─ [106207] → new LogicV1@0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f
+    │   │   └─ ← [Return] 244 bytes of code
+    │   └─ ← [Return] LogicV1: [0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f]
+    ├─ [168527] VM::deployCode("src/evm/Proxy.sol:LogicV2")
+    │   ├─ [136501] → new LogicV2@0x2e234DAe75C793f67A35089C9d99245E1C58470b
+    │   │   └─ ← [Return] 385 bytes of code
+    │   └─ ← [Return] LogicV2: [0x2e234DAe75C793f67A35089C9d99245E1C58470b]
+    └─ ← [Stop]
+
+  [218633] ProxyTest::test_BrokenProxyFailsSilentlyAfterCollision()
+    ├─ [152942] VM::deployCode("src/evm/Proxy.sol:BrokenProxy", 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f)
+    │   ├─ [120918] → new BrokenProxy@0xF62849F9A0B5Bf2913b396098F7c7019b51A820a
+    │   │   ├─  storage changes:
+    │   │   │   @ 0: 0 → 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f
+    │   │   └─ ← [Return] 199 bytes of code
+    │   └─ ← [Return] BrokenProxy: [0xF62849F9A0B5Bf2913b396098F7c7019b51A820a]
+    ├─ [30313] BrokenProxy::fallback(57005 [5.7e4])
+    │   ├─ [4208] LogicV1::setValue(57005 [5.7e4]) [delegatecall]
+    │   │   ├─ emit ValueSet(value: 57005 [5.7e4])
+    │   │   ├─  storage changes:
+    │   │   │   @ 0: 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f → 57005
+    │   │   └─ ← [Stop]
+    │   └─ ← [Return]
+    ├─ [25950] BrokenProxy::fallback()
+    │   ├─ [0] 0x000000000000000000000000000000000000dEaD::value() [delegatecall]
+    │   │   └─ ← [Stop]
+    │   └─ ← [Return]
+    └─ ← [Stop]
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 638.62µs (168.54µs CPU time)
+
+Ran 1 test suite in 4.64ms (638.62µs CPU time): 1 tests passed, 0 failed, 0 skipped (1 total tests)

@@ -1,0 +1,11 @@
+# The course's reference ECDSA.sol (SECP256K1N_HALF has 63 hex digits = n/32),
+# run against a fuzz test that signs honest permits with random keys:
+$ forge test --match-contract RefEcdsa
+[FAIL: InvalidSignatureS(); counterexample: calldata=0x3d9ef54c00000000000000000000000000000000000000000000000000000001d1e3384e args=[7816296526 [7.816e9]]] testFuzz_HonestPermit(uint256) (runs: 1, μ: 96903, ~: 96903)
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 2.47ms (2.07ms CPU time)
+[FAIL: InvalidSignatureS(); counterexample: calldata=0x3d9ef54c00000000000000000000000000000000000000000000000000000001d1e3384e args=[7816296526 [7.816e9]]] testFuzz_HonestPermit(uint256) (runs: 1, μ: 96903, ~: 96903)
+
+# Correct n/2 vs the reference constant:
+n/2            = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0
+reference      = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a (63 hex digits)
+n/2 / reference = 16.0

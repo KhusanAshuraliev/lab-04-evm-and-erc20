@@ -1,0 +1,19 @@
+$ forge test --match-contract UpgradeableTokenTest -vv
+
+Ran 13 tests for test/Upgradeable.t.sol:UpgradeableTokenTest
+[PASS] test_CapIsEnforcedThroughTheProxy() (gas: 49583)
+[PASS] test_DomainSeparatorUsesTheProxyAddress() (gas: 16079)
+[PASS] test_PrependingAVariableCorruptsEverything() (gas: 2696058)
+[PASS] test_ProxyIsInitialised() (gas: 135694)
+[PASS] test_ProxyRefusesPlainEth() (gas: 43633)
+[PASS] test_RevertWhen_ImplementationIsInitializedDirectly() (gas: 36612)
+[PASS] test_RevertWhen_InitializedTwice() (gas: 41616)
+[PASS] test_RevertWhen_InitializedWithZeroCap() (gas: 200866)
+[PASS] test_RevertWhen_UpgradeByNonAdmin() (gas: 36678)
+[PASS] test_RevertWhen_UpgradeToNonContract() (gas: 39303)
+[PASS] test_UpgradeKeepsAllState() (gas: 1246385)
+[PASS] test_V2AppendsItsVariable() (gas: 100003)
+[PASS] test_V2NewFunction() (gas: 971795)
+Suite result: ok. 13 passed; 0 failed; 0 skipped; finished in 2.14ms (3.99ms CPU time)
+
+Ran 1 test suite in 4.78ms (2.14ms CPU time): 13 tests passed, 0 failed, 0 skipped (13 total tests)

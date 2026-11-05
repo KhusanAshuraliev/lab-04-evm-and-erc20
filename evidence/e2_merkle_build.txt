@@ -1,0 +1,6 @@
+recipients : 10000
+root       : 0xfb162494eb295d5959948596d8fe4bad6cb720537cb98a6657b710525c3c129b
+proof size : 14 elements for every recipient (ceil(log2 10000))
+total      : 5,006,077.028043 tokens
+checked    : all 10000 proofs verify against the root in Python
+time       : 0.62 s

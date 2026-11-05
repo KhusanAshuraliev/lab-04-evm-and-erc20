@@ -1,0 +1,26 @@
+$ forge test --match-contract AirdropTest -vv
+
+Ran 4 tests for test/Airdrop.t.sol:AirdropTest
+[PASS] test_ClaimFirstLastAndRandom() (gas: 2681864865)
+Logs:
+  random index: 9159
+  claim index 0 gas 114521
+  claim index 9999 gas 95147
+  claim index 9159 gas 96659
+
+[PASS] test_GasMappingVersusMerkle() (gas: 254783068)
+Logs:
+  mapping, 10,000 entries, deployer gas: 238763639
+    per entry:                           23876
+    blocks of 30M gas needed:            8
+  mapping claim, claimant gas:           83887
+
+[PASS] test_GasMerkleRoot() (gas: 1755847)
+Logs:
+  merkle root, deployer gas (whole tx): 48120
+    without the 21,000 base cost:       27120
+
+[PASS] test_RealProofGuards() (gas: 2414790457)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 1.59s (1.81s CPU time)
+
+Ran 1 test suite in 1.59s (1.59s CPU time): 4 tests passed, 0 failed, 0 skipped (4 total tests)

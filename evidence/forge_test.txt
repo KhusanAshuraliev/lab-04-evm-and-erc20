@@ -1,0 +1,188 @@
+$ forge test
+Compiling 40 files with Solc 0.8.24
+Solc 0.8.24 finished in 5.04s
+Compiler run successful!
+
+Ran 8 tests for test/EvmInternals.t.sol:ProxyTest
+[PASS] test_BrokenProxyFailsSilentlyAfterCollision() (gas: 218633)
+[PASS] test_BrokenProxyStorageCollision() (gas: 199663)
+[PASS] test_Eip1967SlotHasTheCanonicalValue() (gas: 339)
+[PASS] test_RevertWhen_NonAdminUpgrades() (gas: 331008)
+[PASS] test_RevertWhen_UpgradingToNonContract() (gas: 331825)
+[PASS] test_SafeProxyAvoidsCollision() (gas: 369531)
+[PASS] test_StorageGapReservesSlots() (gas: 173804)
+[PASS] test_UpgradePreservesState() (gas: 511653)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 5.29ms (4.48ms CPU time)
+
+Ran 10 tests for test/EvmInternals.t.sol:StorageLayoutTest
+[PASS] test_AddressAndBoolShareASlot() (gas: 52544)
+[PASS] test_ConstantAndImmutableUseNoSlots() (gas: 16056)
+[PASS] test_DynamicArrayLayout() (gas: 125808)
+[PASS] test_FullWordTakesItsOwnSlot() (gas: 51926)
+[PASS] test_MappingIsNotEnumerable() (gas: 96894)
+[PASS] test_MappingSlotArithmetic() (gas: 58907)
+[PASS] test_NestedMappingAppliesTheRuleRecursively() (gas: 56493)
+[PASS] test_PackingOrderAffectsGasCost() (gas: 558206)
+[PASS] test_PrivateStorageIsPubliclyReadable() (gas: 54923)
+[PASS] test_VariablesArePackedIntoOneSlot() (gas: 53202)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 6.30ms (5.33ms CPU time)
+
+Ran 4 tests for test/ProxyExtra.t.sol:ProxyExtraTest
+[PASS] test_BrokenProxyReturnsNothingAfterCollision() (gas: 243471)
+[PASS] test_EIP1967AdminSlot() (gas: 309929)
+[PASS] test_RevertWhen_SafeProxyDeployedWithoutCode() (gas: 113009)
+[PASS] test_V2SetValueAfterUpgrade() (gas: 400706)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 6.51ms (5.36ms CPU time)
+
+Ran 13 tests for test/Upgradeable.t.sol:UpgradeableTokenTest
+[PASS] test_CapIsEnforcedThroughTheProxy() (gas: 49583)
+[PASS] test_DomainSeparatorUsesTheProxyAddress() (gas: 16079)
+[PASS] test_PrependingAVariableCorruptsEverything() (gas: 2696058)
+[PASS] test_ProxyIsInitialised() (gas: 135694)
+[PASS] test_ProxyRefusesPlainEth() (gas: 43633)
+[PASS] test_RevertWhen_ImplementationIsInitializedDirectly() (gas: 36612)
+[PASS] test_RevertWhen_InitializedTwice() (gas: 41616)
+[PASS] test_RevertWhen_InitializedWithZeroCap() (gas: 200866)
+[PASS] test_RevertWhen_UpgradeByNonAdmin() (gas: 36678)
+[PASS] test_RevertWhen_UpgradeToNonContract() (gas: 39303)
+[PASS] test_UpgradeKeepsAllState() (gas: 1246385)
+[PASS] test_V2AppendsItsVariable() (gas: 100003)
+[PASS] test_V2NewFunction() (gas: 971795)
+Suite result: ok. 13 passed; 0 failed; 0 skipped; finished in 5.22ms (3.66ms CPU time)
+
+Ran 41 tests for test/CampusToken.t.sol:CampusTokenTest
+[PASS] testFuzz_FeeNeverExceedsMaximum(uint16,uint256) (runs: 512, μ: 159715, ~: 164239)
+[PASS] testFuzz_MintNeverBreachesCap(uint256) (runs: 512, μ: 67094, ~: 79338)
+[PASS] testFuzz_TransferPreservesTotalSupply(address,uint256) (runs: 512, μ: 90011, ~: 90012)
+[PASS] test_ApproveRaceCondition() (gas: 205326)
+[PASS] test_BurnFreesCapHeadroom() (gas: 149260)
+[PASS] test_ClaimRespectsCap() (gas: 212542)
+[PASS] test_ClaimWithValidProof() (gas: 174824)
+[PASS] test_DeployerIsNotAutomaticallyPrivileged() (gas: 24336)
+[PASS] test_DomainSeparatorDependsOnChainId() (gas: 17181)
+[PASS] test_DustTransferPaysNoFee() (gas: 112968)
+[PASS] test_FeeDoesNotChangeTotalSupply() (gas: 137782)
+[PASS] test_FeeIsRoutedToTreasury() (gas: 147582)
+[PASS] test_InfiniteAllowanceIsNotDecremented() (gas: 122791)
+[PASS] test_InternalNodeCannotBePassedOffAsALeaf() (gas: 122800)
+[PASS] test_Metadata() (gas: 45295)
+[PASS] test_MintAndBurnAreExemptFromFee() (gas: 113017)
+[PASS] test_MintRespectsCap() (gas: 71700)
+[PASS] test_PauseBlocksTransfers() (gas: 70029)
+[PASS] test_Permit() (gas: 175557)
+[PASS] test_RenounceOnlyAffectsSelf() (gas: 43471)
+[PASS] test_RevertWhen_CapIsZero() (gas: 224370)
+[PASS] test_RevertWhen_ClaimedTwice() (gas: 189479)
+[PASS] test_RevertWhen_ClaimingWithAnotherAccountsProof() (gas: 123748)
+[PASS] test_RevertWhen_ClaimingWrongAmount() (gas: 123781)
+[PASS] test_RevertWhen_ClaimsNotOpen() (gas: 35086)
+[PASS] test_RevertWhen_FeeAboveMaximum() (gas: 35041)
+[PASS] test_RevertWhen_MintExceedsCap() (gas: 42485)
+[PASS] test_RevertWhen_NonAdminGrantsRole() (gas: 42991)
+[PASS] test_RevertWhen_NonMinterMints() (gas: 41188)
+[PASS] test_RevertWhen_PermitExpired() (gas: 53585)
+[PASS] test_RevertWhen_PermitReplayed() (gas: 137190)
+[PASS] test_RevertWhen_PermitSignedByAnotherKey() (gas: 80635)
+[PASS] test_RevertWhen_PermitUsesHighS() (gas: 75671)
+[PASS] test_RevertWhen_TransferExceedsBalance() (gas: 40484)
+[PASS] test_RevertWhen_TransferToZeroAddress() (gas: 33117)
+[PASS] test_RevertWhen_TreasuryIsZero() (gas: 222229)
+[PASS] test_RolesAreSeparable() (gas: 151573)
+[PASS] test_Transfer() (gas: 79385)
+[PASS] test_TransferEmitsEvent() (gas: 68905)
+[PASS] test_TransferFromSpendsAllowance() (gas: 135357)
+[PASS] test_UnpauseRestoresTransfers() (gas: 133127)
+Suite result: ok. 41 passed; 0 failed; 0 skipped; finished in 61.85ms (68.55ms CPU time)
+
+Ran 37 tests for test/CampusTokenExtra.t.sol:CampusTokenExtraTest
+[PASS] testFuzz_FeeSplit(uint16,uint256) (runs: 512, μ: 168547, ~: 173612)
+[PASS] testFuzz_PermitFromAnyKey(uint256,uint256) (runs: 512, μ: 161652, ~: 161853)
+[PASS] testFuzz_TransferFromAllowance(uint256,uint256) (runs: 512, μ: 120239, ~: 135964)
+[PASS] test_ApproveEmitsApproval() (gas: 61386)
+[PASS] test_BalanceSlotArithmetic() (gas: 20310)
+[PASS] test_BurnEmitsTransferToZero() (gas: 52063)
+[PASS] test_ClaimHitsTheCapWithCapExceeded() (gas: 195130)
+[PASS] test_ClosingClaimsWithZeroRoot() (gas: 112116)
+[PASS] test_DeployerHoldsNoRoleAtAll() (gas: 93813)
+[PASS] test_DomainSeparatorMatchesEip712() (gas: 17659)
+[PASS] test_EachRoleOnADifferentAccount() (gas: 388024)
+[PASS] test_EveryRoleIsAdministeredByTheDefaultAdmin() (gas: 64793)
+[PASS] test_FeeAlsoAppliesToTransferFrom() (gas: 200800)
+[PASS] test_HonestSignaturesUseTheWholeLowerHalf() (gas: 66015)
+[PASS] test_MintEmitsTransferFromZero() (gas: 71325)
+[PASS] test_OnePercentOfAThousand() (gas: 157756)
+[PASS] test_PackedConfigurationSlot() (gas: 74499)
+[PASS] test_PauseAlsoBlocksMintAndBurn() (gas: 97321)
+[PASS] test_PermitAtTheDeadlineIsStillValid() (gas: 106531)
+[PASS] test_PermitEmitsApproval() (gas: 105274)
+[PASS] test_RevertWhen_AdminIsZero() (gas: 222147)
+[PASS] test_RevertWhen_ApproveZeroSpender() (gas: 33080)
+[PASS] test_RevertWhen_BurnExceedsBalance() (gas: 37854)
+[PASS] test_RevertWhen_ClaimIsPaused() (gas: 162303)
+[PASS] test_RevertWhen_FeeTransferExceedsBalance() (gas: 73970)
+[PASS] test_RevertWhen_MintToZeroAddress() (gas: 35209)
+[PASS] test_RevertWhen_PermitReplayedExactError() (gas: 160270)
+[PASS] test_RevertWhen_PermitReplayedOnAnotherChain() (gas: 82568)
+[PASS] test_RevertWhen_PermitSignerIsNotTheOwner() (gas: 81262)
+[PASS] test_RevertWhen_PermitSpenderIsZero() (gas: 74979)
+[PASS] test_RevertWhen_SignatureIsGarbage() (gas: 110463)
+[PASS] test_RevertWhen_TransferFromExceedsAllowance() (gas: 86299)
+[PASS] test_RevertWhen_TreasurySetToZero() (gas: 34588)
+[PASS] test_RevokedMinterCannotMint() (gas: 73648)
+[PASS] test_SecondPreimageAccountCannotClaim() (gas: 120632)
+[PASS] test_SetTreasury() (gas: 183250)
+[PASS] test_TransfersFromAndToTreasuryPayNoFee() (gas: 172777)
+Suite result: ok. 37 passed; 0 failed; 0 skipped; finished in 215.07ms (253.72ms CPU time)
+
+Ran 5 tests for test/EvmInternals.t.sol:YulCounterTest
+[PASS] testFuzz_GuardImplementationsAgree(uint256) (runs: 512, μ: 16934, ~: 18482)
+[PASS] testFuzz_SumImplementationsAgree(uint128[]) (runs: 512, μ: 100098, ~: 95349)
+[PASS] test_BothIncrementsAgree() (gas: 85709)
+[PASS] test_YulIncrementIsCheaper() (gas: 112231)
+[PASS] test_YulRevertEncodesTheCustomError() (gas: 8842)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 219.31ms (217.64ms CPU time)
+
+Ran 7 tests for test/YulDifferential.t.sol:YulDifferentialTest
+[PASS] testFuzz_CheckedSumAgreesIncludingReverts(uint256[]) (runs: 512, μ: 45088, ~: 43980)
+[PASS] testFuzz_MerkleAgreesOnGarbage(bytes32[],bytes32,bytes32) (runs: 512, μ: 178480, ~: 180699)
+[PASS] testFuzz_MerkleAgreesOnRealTrees(uint256,uint8,uint256,uint256) (runs: 512, μ: 66127, ~: 37289)
+[PASS] test_CheckedSumOverflowReverts() (gas: 20083)
+[PASS] test_GasCheckedSum100() (gas: 86012)
+[PASS] test_GasMerkle14() (gas: 37681)
+[PASS] test_MerkleEqualSiblings() (gas: 12776)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 220.41ms (381.35ms CPU time)
+
+Ran 1 test for test/CampusTokenInvariant.t.sol:CampusTokenInvariantTest
+[PASS]
+CampusTokenInvariantTest invariants:
+[PASS] invariant_FeeStaysWithinTheHardLimit
+[PASS] invariant_SumOfBalancesEqualsTotalSupply
+[PASS] invariant_SupplyMatchesMintMinusBurn
+[PASS] invariant_TotalSupplyNeverExceedsCap
+ CampusTokenInvariantTest invariants (runs: 64, calls: 2048, reverts: 0)
+
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 332.66ms (329.23ms CPU time)
+
+Ran 1 test for test/CampusTokenModel.t.sol:CampusTokenModelTest
+[PASS]
+CampusTokenModelTest invariants:
+[PASS] invariant_BalancesMatchTheModel
+[PASS] invariant_FeeWithinLimit
+[PASS] invariant_NoncesAndClaimsAreExact
+[PASS] invariant_SumOfBalancesIsSupply
+[PASS] invariant_SupplyIsMintedMinusBurned
+[PASS] invariant_SupplyWithinCap
+ CampusTokenModelTest invariants (runs: 64, calls: 2048, reverts: 0)
+
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 906.89ms (904.60ms CPU time)
+
+Ran 4 tests for test/Airdrop.t.sol:AirdropTest
+[PASS] test_ClaimFirstLastAndRandom() (gas: 2681864865)
+[PASS] test_GasMappingVersusMerkle() (gas: 254783068)
+[PASS] test_GasMerkleRoot() (gas: 1755847)
+[PASS] test_RealProofGuards() (gas: 2414790457)
+Suite result: ok. 4 passed; 0 failed; 0 skipped; finished in 1.71s (1.84s CPU time)
+
+Ran 11 test suites in 1.72s (3.69s CPU time): 131 tests passed, 0 failed, 0 skipped (131 total tests)

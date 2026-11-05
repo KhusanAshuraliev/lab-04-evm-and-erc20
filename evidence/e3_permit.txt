@@ -1,0 +1,95 @@
+
+== accounts
+deployer/admin : 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+owner          : 0x70997970C51812dc3A010C7d01b50e0d17dc79C8   (signs, never sends a transaction)
+spender        : 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC   (submits the permit and pays its gas)
+chain id       : 31337
+
+== 1. deploy with forge script
+  CampusToken: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+  admin      : 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+  treasury   : 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+  cap        : 1000000000000000000000000
+  note: the deploying key is the admin; hand the roles to a multisig
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+token          : 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+== 2. mint 1000 CMPS to the owner
+$ cast call --rpc-url http://127.0.0.1:8545 0x5FbDB2315678afecb367f032d93F642f64180aa3 balanceOf(address)(uint256) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+1000000000000000000000 [1e21]
+owner's ETH spent so far: none -- nonce of the owner = 0
+
+== 3. the typed data I sign (EIP-712)
+{
+  "types": {
+    "EIP712Domain": [
+      {"name": "name", "type": "string"},
+      {"name": "version", "type": "string"},
+      {"name": "chainId", "type": "uint256"},
+      {"name": "verifyingContract", "type": "address"}
+    ],
+    "Permit": [
+      {"name": "owner", "type": "address"},
+      {"name": "spender", "type": "address"},
+      {"name": "value", "type": "uint256"},
+      {"name": "nonce", "type": "uint256"},
+      {"name": "deadline", "type": "uint256"}
+    ]
+  },
+  "primaryType": "Permit",
+  "domain": {
+    "name": "Campus Token",
+    "version": "1",
+    "chainId": 31337,
+    "verifyingContract": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+  },
+  "message": {
+    "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "spender": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "value": "250000000000000000000",
+    "nonce": 0,
+    "deadline": 1793891262
+  }
+}
+
+== 4. a deliberately wrong domain first: version "1.0" instead of "1"
+signature: 0x89ca26f60b34200ad123ab184c817ccae7f6947b84210f87a8deac8d9192e41e567db07baf2075aa8386daa713e15680253af62a04185ed7624751540c93a1821b
+reverted with selector 0x32b13588 = 1) "InvalidPermitSigner(address,address)"
+  InvalidPermitSigner(address,address) has selector 0x32b13588
+  0xA55A3d84Cd8Cc6c1013FaA647c3052cEe24F3e4b
+  0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+  (recovered signer, claimed owner): the digest differs, so ecrecover gives an unrelated address
+
+== 5. sign the correct typed data with cast
+signature: 0xa0883df31a8158f99357f82de5b120abf7b6b9c8b9a5a2c26a2ecc1d2a1d837f0764db25844fd4025ccc5e8ebd443a0b5be99aadb4be6e1f3405eb07da3709691c
+v = 28
+r = 0xa0883df31a8158f99357f82de5b120abf7b6b9c8b9a5a2c26a2ecc1d2a1d837f
+s = 0x0764db25844fd4025ccc5e8ebd443a0b5be99aadb4be6e1f3405eb07da370969
+DOMAIN_SEPARATOR() on chain: 0xdd757f4c3377ae6c6c418005fc47cfa5125886476db694681ffc7b4c719a7725
+cast's own check           : Validation succeeded. Address 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 signed this message.
+
+== 6. the spender submits permit with cast send
+gasUsed              74560
+status               1 (success)
+transactionHash      0xf57d417fc1688ad2c39eb925b504249e6e911f6e2a6ef0f590a40f968235871a
+
+== 7. results
+$ cast call --rpc-url http://127.0.0.1:8545 0x5FbDB2315678afecb367f032d93F642f64180aa3 allowance(address,address)(uint256) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+250000000000000000000 [2.5e20]
+$ cast call --rpc-url http://127.0.0.1:8545 0x5FbDB2315678afecb367f032d93F642f64180aa3 nonces(address)(uint256) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+1
+transactions sent by the owner: 0
+
+== 8. resubmitting the same signature
+reverted with selector 0x32b13588 = 1) "InvalidPermitSigner(address,address)"
+  InvalidPermitSigner(address,address) has selector 0x32b13588
+  0x3416FC0002A9F9CB20846Fb6A4f6e0b0117f8e5b
+  0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+  the nonce is now 1, so the digest is built with nonce 1 and the old signature no longer matches
+
+== 9. the spender uses the allowance
+status               1 (success)
+$ cast call --rpc-url http://127.0.0.1:8545 0x5FbDB2315678afecb367f032d93F642f64180aa3 balanceOf(address)(uint256) 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+100000000000000000000 [1e20]
+$ cast call --rpc-url http://127.0.0.1:8545 0x5FbDB2315678afecb367f032d93F642f64180aa3 allowance(address,address)(uint256) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+150000000000000000000 [1.5e20]

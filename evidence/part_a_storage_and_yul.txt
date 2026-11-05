@@ -1,0 +1,53 @@
+$ forge test --match-contract "StorageLayoutTest|YulCounterTest|YulDifferentialTest" -vv
+
+Ran 10 tests for test/EvmInternals.t.sol:StorageLayoutTest
+[PASS] test_AddressAndBoolShareASlot() (gas: 52544)
+[PASS] test_ConstantAndImmutableUseNoSlots() (gas: 16056)
+[PASS] test_DynamicArrayLayout() (gas: 125808)
+[PASS] test_FullWordTakesItsOwnSlot() (gas: 51926)
+[PASS] test_MappingIsNotEnumerable() (gas: 96894)
+[PASS] test_MappingSlotArithmetic() (gas: 58907)
+[PASS] test_NestedMappingAppliesTheRuleRecursively() (gas: 56493)
+[PASS] test_PackingOrderAffectsGasCost() (gas: 558206)
+Logs:
+  bad order gas  (3 slots): 89134
+  good order gas (2 slots): 66959
+
+[PASS] test_PrivateStorageIsPubliclyReadable() (gas: 54923)
+[PASS] test_VariablesArePackedIntoOneSlot() (gas: 53202)
+Suite result: ok. 10 passed; 0 failed; 0 skipped; finished in 65.04ms (830.04µs CPU time)
+
+Ran 7 tests for test/YulDifferential.t.sol:YulDifferentialTest
+[PASS] testFuzz_CheckedSumAgreesIncludingReverts(uint256[]) (runs: 512, μ: 43614, ~: 43090)
+[PASS] testFuzz_MerkleAgreesOnGarbage(bytes32[],bytes32,bytes32) (runs: 512, μ: 178500, ~: 180744)
+[PASS] testFuzz_MerkleAgreesOnRealTrees(uint256,uint8,uint256,uint256) (runs: 512, μ: 64521, ~: 37329)
+[PASS] test_CheckedSumOverflowReverts() (gas: 20083)
+[PASS] test_GasCheckedSum100() (gas: 86012)
+Logs:
+  checked sum of 100, solidity gas: 31664
+  checked sum of 100, yul gas:      23391
+  saved:                            8273
+
+[PASS] test_GasMerkle14() (gas: 37681)
+Logs:
+  merkle verify, 14 levels, solidity gas: 10461
+  merkle verify, 14 levels, yul gas:      9310
+  saved:                                  1151
+
+[PASS] test_MerkleEqualSiblings() (gas: 12776)
+Suite result: ok. 7 passed; 0 failed; 0 skipped; finished in 88.53ms (207.17ms CPU time)
+
+Ran 5 tests for test/EvmInternals.t.sol:YulCounterTest
+[PASS] testFuzz_GuardImplementationsAgree(uint256) (runs: 512, μ: 16700, ~: 18482)
+[PASS] testFuzz_SumImplementationsAgree(uint128[]) (runs: 512, μ: 100098, ~: 95349)
+[PASS] test_BothIncrementsAgree() (gas: 85709)
+[PASS] test_YulIncrementIsCheaper() (gas: 112231)
+Logs:
+  solidity increment gas: 26857
+  yul increment gas:      26799
+  saved:                  58
+
+[PASS] test_YulRevertEncodesTheCustomError() (gas: 8842)
+Suite result: ok. 5 passed; 0 failed; 0 skipped; finished in 88.66ms (84.28ms CPU time)
+
+Ran 3 test suites in 88.98ms (242.24ms CPU time): 22 tests passed, 0 failed, 0 skipped (22 total tests)
